@@ -1,7 +1,7 @@
 export interface User {
   id: string;
   email: string;
-  role: 'student' | 'parent' | 'admin';
+  role: 'student' | 'parent' | 'teacher' | 'admin';
   firstName: string;
   lastName: string;
   createdAt: string;

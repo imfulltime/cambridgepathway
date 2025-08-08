@@ -19,7 +19,7 @@ export type Database = {
         Row: {
           id: string
           email: string
-          role: 'student' | 'parent' | 'admin'
+          role: 'student' | 'parent' | 'teacher' | 'admin'
           first_name: string
           last_name: string
           profile_image: string | null
@@ -29,7 +29,7 @@ export type Database = {
         Insert: {
           id?: string
           email: string
-          role: 'student' | 'parent' | 'admin'
+          role: 'student' | 'parent' | 'teacher' | 'admin'
           first_name: string
           last_name: string
           profile_image?: string | null

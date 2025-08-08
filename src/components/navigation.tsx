@@ -53,7 +53,12 @@ export function Navigation() {
             </Link>
             {user && (
               <Link
-                href="/dashboard"
+                href={
+                  user.role === 'parent' ? '/parent-dashboard' :
+                  user.role === 'teacher' ? '/teacher-dashboard' :
+                  user.role === 'admin' ? '/admin-dashboard' :
+                  '/dashboard'
+                }
                 className="text-gray-700 hover:text-primary-600 px-3 py-2 rounded-md text-sm font-medium transition-colors"
               >
                 {t('nav.dashboard')}
@@ -185,7 +190,12 @@ export function Navigation() {
             </Link>
             {user && (
               <Link
-                href="/dashboard"
+                href={
+                  user.role === 'parent' ? '/parent-dashboard' :
+                  user.role === 'teacher' ? '/teacher-dashboard' :
+                  user.role === 'admin' ? '/admin-dashboard' :
+                  '/dashboard'
+                }
                 className="block px-3 py-2 text-base font-medium text-gray-700 hover:text-primary-600 hover:bg-gray-50 rounded-md transition-colors"
                 onClick={() => setIsOpen(false)}
               >
@@ -239,7 +249,7 @@ export function Navigation() {
                     Profile
                   </Link>
                   <Link
-                    href="/settings"
+                    href="/profile/settings"
                     className="block px-3 py-2 text-base font-medium text-gray-700 hover:text-primary-600 hover:bg-gray-50 rounded-md transition-colors"
                     onClick={() => setIsOpen(false)}
                   >

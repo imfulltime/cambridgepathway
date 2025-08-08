@@ -14,7 +14,7 @@ export default function SignUpPage() {
     confirmPassword: '',
     firstName: '',
     lastName: '',
-    role: '' as 'student' | 'parent' | '',
+    role: '' as 'student' | 'parent' | 'teacher' | '',
     gradeLevel: '',
     subjects: [] as string[],
   })
@@ -62,6 +62,10 @@ export default function SignUpPage() {
     }
     if (formData.role === 'student' && (!formData.gradeLevel || formData.subjects.length === 0)) {
       setError('Please select your grade level and at least one subject')
+      return false
+    }
+    if (formData.role === 'teacher' && (!formData.gradeLevel || formData.subjects.length === 0)) {
+      setError('Please select your teaching level and at least one subject')
       return false
     }
     return true
@@ -136,6 +140,22 @@ export default function SignUpPage() {
             })
 
           if (studentError) console.error('Student record error:', studentError)
+        }
+
+        // If user is a teacher, create teacher record
+        if (formData.role === 'teacher') {
+          const { error: teacherError } = await supabase
+            .from('teachers')
+            .insert({
+              user_id: data.user.id,
+              department: 'General', // Default department
+              specialization: formData.subjects || [],
+              bio: '',
+              years_experience: 0,
+              is_verified: false, // Requires admin verification
+            })
+
+          if (teacherError) console.error('Teacher record error:', teacherError)
         }
 
         router.push('/auth/verify-email')
@@ -341,7 +361,7 @@ export default function SignUpPage() {
                   <label className="block text-sm font-medium text-gray-700 mb-4">
                     I am a...
                   </label>
-                  <div className="grid grid-cols-2 gap-4">
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                     <button
                       type="button"
                       onClick={() => handleInputChange('role', 'student')}
@@ -368,14 +388,27 @@ export default function SignUpPage() {
                       <div className="font-medium">Parent</div>
                       <div className="text-xs text-gray-500">Monitor progress</div>
                     </button>
+                    <button
+                      type="button"
+                      onClick={() => handleInputChange('role', 'teacher')}
+                      className={`p-4 border-2 rounded-lg transition-colors ${
+                        formData.role === 'teacher'
+                          ? 'border-primary-500 bg-primary-50 text-primary-700'
+                          : 'border-gray-300 hover:border-gray-400'
+                      }`}
+                    >
+                      <User className="w-8 h-8 mx-auto mb-2" />
+                      <div className="font-medium">Teacher</div>
+                      <div className="text-xs text-gray-500">Educate students</div>
+                    </button>
                   </div>
                 </div>
 
-                {formData.role === 'student' && (
+                {(formData.role === 'student' || formData.role === 'teacher') && (
                   <>
                     <div>
                       <label htmlFor="gradeLevel" className="block text-sm font-medium text-gray-700 mb-2">
-                        Grade Level
+                        {formData.role === 'teacher' ? 'Teaching Level' : 'Grade Level'}
                       </label>
                       <select
                         id="gradeLevel"
@@ -383,17 +416,18 @@ export default function SignUpPage() {
                         onChange={(e) => handleInputChange('gradeLevel', e.target.value)}
                         className="block w-full px-3 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition-colors"
                       >
-                        <option value="">Select your grade level</option>
+                        <option value="">{formData.role === 'teacher' ? 'Select teaching level' : 'Select your grade level'}</option>
                         <option value="grade-9">Grade 9 (Year 10)</option>
                         <option value="grade-10">Grade 10 (Year 11)</option>
                         <option value="grade-11">Grade 11 (Year 12)</option>
                         <option value="grade-12">Grade 12 (Year 13)</option>
+                        {formData.role === 'teacher' && <option value="all-levels">All Levels</option>}
                       </select>
                     </div>
 
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-2">
-                        Subjects of Interest
+                        {formData.role === 'teacher' ? 'Teaching Subjects' : 'Subjects of Interest'}
                       </label>
                       <div className="space-y-2">
                         {['Mathematics', 'English Literature', 'English Language', 'Physics', 'Chemistry', 'Biology'].map((subject) => (
