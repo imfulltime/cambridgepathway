@@ -24,6 +24,7 @@ export default function SignUpPage() {
   const [error, setError] = useState('')
   const router = useRouter()
   const supabase = createSupabaseClient()
+  const enableGoogle = process.env.NEXT_PUBLIC_ENABLE_GOOGLE_OAUTH === 'true'
 
   const handleInputChange = (field: string, value: string | string[]) => {
     setFormData(prev => ({ ...prev, [field]: value }))
@@ -427,7 +428,7 @@ export default function SignUpPage() {
               </>
             )}
 
-            {step === 1 && (
+            {enableGoogle && step === 1 && (
               <>
                 {/* Divider */}
                 <div className="relative">

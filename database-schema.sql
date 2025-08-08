@@ -267,10 +267,14 @@ ALTER TABLE notifications ENABLE ROW LEVEL SECURITY;
 -- Users can only see their own profile
 CREATE POLICY "Users can view own profile" ON users FOR SELECT USING (auth.uid() = id);
 CREATE POLICY "Users can update own profile" ON users FOR UPDATE USING (auth.uid() = id);
+-- Users can insert own profile after sign up
+CREATE POLICY "Users can insert own profile" ON users FOR INSERT WITH CHECK (auth.uid() = id);
 
 -- Students can only see their own data
 CREATE POLICY "Students can view own data" ON students FOR SELECT USING (auth.uid() = user_id);
 CREATE POLICY "Students can update own data" ON students FOR UPDATE USING (auth.uid() = user_id);
+-- Students can insert their own student record
+CREATE POLICY "Students can insert own data" ON students FOR INSERT WITH CHECK (auth.uid() = user_id);
 
 -- Progress is private to the user
 CREATE POLICY "Users can view own progress" ON progress FOR SELECT USING (auth.uid() = user_id);
