@@ -14,6 +14,7 @@ import {
   AlertCircle
 } from 'lucide-react'
 import Link from 'next/link'
+import { createSupabaseClient } from '@/lib/supabase'
 
 interface DashboardData {
   totalCourses: number
@@ -49,69 +50,55 @@ interface DashboardData {
 export default function DashboardPage() {
   const { user, userProfile, loading } = useAuth()
   const [dashboardData, setDashboardData] = useState<DashboardData | null>(null)
+  const supabase = createSupabaseClient()
 
   useEffect(() => {
-    if (user) {
-      // Mock data - replace with actual API calls
+    const loadData = async () => {
+      if (!user) return
+      // total courses
+      const { data: courseData } = await supabase.from('courses').select('id').eq('is_published', true)
+      // total/completed lessons for user
+      const { data: totalLessons } = await supabase.from('lessons').select('id')
+      const { data: completed } = await supabase
+        .from('progress')
+        .select('lesson_id')
+        .eq('user_id', user.id)
+        .eq('completed', true)
+      // recent activity from progress and quiz_attempts
+      const { data: attempts } = await supabase
+        .from('quiz_attempts')
+        .select('id,score,created_at')
+        .eq('user_id', user.id)
+        .order('created_at', { ascending: false })
+        .limit(5)
+      const { data: recentProg } = await supabase
+        .from('progress')
+        .select('id,updated_at')
+        .eq('user_id', user.id)
+        .eq('completed', true)
+        .order('updated_at', { ascending: false })
+        .limit(5)
+
+      const recentActivity = [
+        ...(recentProg || []).map((p: any) => ({ id: `p-${p.id}`, type: 'lesson_completed', title: 'Lesson completed', timestamp: p.updated_at, progress: 100 })),
+        ...(attempts || []).map((a: any) => ({ id: `a-${a.id}`, type: 'quiz_attempted', title: 'Quiz Attempt', timestamp: a.created_at, progress: a.score })),
+      ].slice(0, 5)
+
       setDashboardData({
-        totalCourses: 2,
-        completedLessons: 12,
-        totalLessons: 20,
-        averageScore: 87,
-        timeSpent: 145, // minutes
-        streak: 7,
-        upcomingAssessments: [
-          {
-            id: '1',
-            title: 'Algebra Fundamentals Quiz',
-            subject: 'Mathematics',
-            dueDate: '2024-01-15',
-            type: 'Quiz'
-          },
-          {
-            id: '2',
-            title: 'Literature Analysis Essay',
-            subject: 'English',
-            dueDate: '2024-01-18',
-            type: 'Assignment'
-          }
-        ],
-        recentActivity: [
-          {
-            id: '1',
-            type: 'lesson_completed',
-            title: 'Quadratic Equations',
-            timestamp: '2024-01-10T14:30:00Z',
-            progress: 100
-          },
-          {
-            id: '2',
-            type: 'quiz_attempted',
-            title: 'Poetry Analysis Quiz',
-            timestamp: '2024-01-09T16:45:00Z',
-            progress: 85
-          }
-        ],
-        courses: [
-          {
-            id: '1',
-            title: 'IGCSE Mathematics',
-            subject: 'Mathematics',
-            progress: 65,
-            lastAccessed: '2024-01-10',
-            nextLesson: 'Functions and Graphs'
-          },
-          {
-            id: '2',
-            title: 'IGCSE English Literature',
-            subject: 'English',
-            progress: 45,
-            lastAccessed: '2024-01-09',
-            nextLesson: 'Character Analysis'
-          }
-        ]
+        totalCourses: (courseData || []).length,
+        completedLessons: (completed || []).length,
+        totalLessons: (totalLessons || []).length,
+        averageScore: Math.round(
+          ((attempts || []).reduce((s: number, a: any) => s + (a.score || 0), 0) / Math.max(1, (attempts || []).length))
+        ),
+        timeSpent: 0,
+        streak: 0,
+        upcomingAssessments: [],
+        recentActivity,
+        courses: [],
       })
     }
+    loadData()
   }, [user])
 
   if (loading) {

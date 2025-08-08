@@ -292,6 +292,30 @@ CREATE POLICY "Authenticated users can create posts" ON forum_posts FOR INSERT W
 CREATE POLICY "Users can update own posts" ON forum_posts FOR UPDATE USING (auth.uid() = user_id);
 CREATE POLICY "Users can delete own posts" ON forum_posts FOR DELETE USING (auth.uid() = user_id);
 
+-- Replies policies
+CREATE POLICY "Anyone can view replies" ON forum_replies FOR SELECT USING (true);
+CREATE POLICY "Authenticated users can create replies" ON forum_replies FOR INSERT WITH CHECK (auth.role() = 'authenticated');
+CREATE POLICY "Users can update own replies" ON forum_replies FOR UPDATE USING (auth.uid() = user_id);
+CREATE POLICY "Users can delete own replies" ON forum_replies FOR DELETE USING (auth.uid() = user_id);
+
+-- Votes policies
+CREATE POLICY "Anyone can view votes" ON forum_votes FOR SELECT USING (true);
+CREATE POLICY "Authenticated users can create votes" ON forum_votes FOR INSERT WITH CHECK (auth.role() = 'authenticated');
+CREATE POLICY "Users can update own votes" ON forum_votes FOR UPDATE USING (auth.uid() = user_id);
+CREATE POLICY "Users can delete own votes" ON forum_votes FOR DELETE USING (auth.uid() = user_id);
+
+-- Quiz answers visibility per user via attempt
+CREATE POLICY "Users view own quiz answers" ON quiz_answers FOR SELECT USING (
+  EXISTS (
+    SELECT 1 FROM quiz_attempts qa WHERE qa.id = attempt_id AND qa.user_id = auth.uid()
+  )
+);
+CREATE POLICY "Users insert quiz answers" ON quiz_answers FOR INSERT WITH CHECK (
+  EXISTS (
+    SELECT 1 FROM quiz_attempts qa WHERE qa.id = attempt_id AND qa.user_id = auth.uid()
+  )
+);
+
 -- Insert sample data
 INSERT INTO courses (title, description, subject, level, total_lessons, duration, instructor_name, is_published) VALUES
 ('IGCSE Mathematics', 'Complete mathematics course covering algebra, geometry, statistics, and calculus', 'math', 'IGCSE', 24, '10 weeks', 'Dr. Sarah Johnson', true),
