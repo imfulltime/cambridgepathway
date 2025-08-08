@@ -523,3 +523,138 @@ $$,
     4
   );
 END $$;
+
+-- -----------------------------------------------------------------------------
+-- Teacher/Admin Dashboard Backend Schema Updates (idempotent)
+-- Run this after adding 'teacher' to user_role enum
+-- -----------------------------------------------------------------------------
+
+-- Teachers table for additional teacher-specific data
+CREATE TABLE IF NOT EXISTS teachers (
+    id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
+    user_id UUID REFERENCES users(id) ON DELETE CASCADE UNIQUE,
+    department VARCHAR(100),
+    specialization TEXT[],
+    bio TEXT,
+    years_experience INTEGER DEFAULT 0,
+    certifications TEXT[],
+    is_verified BOOLEAN DEFAULT FALSE,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+-- Course instructors (many-to-many relationship)
+CREATE TABLE IF NOT EXISTS course_instructors (
+    id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
+    course_id UUID REFERENCES courses(id) ON DELETE CASCADE,
+    teacher_id UUID REFERENCES teachers(id) ON DELETE CASCADE,
+    role VARCHAR(50) DEFAULT 'instructor',
+    assigned_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    UNIQUE(course_id, teacher_id)
+);
+
+-- Class sessions for scheduling
+CREATE TABLE IF NOT EXISTS class_sessions (
+    id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
+    course_id UUID REFERENCES courses(id) ON DELETE CASCADE,
+    teacher_id UUID REFERENCES teachers(id) ON DELETE CASCADE,
+    title VARCHAR(255) NOT NULL,
+    description TEXT,
+    session_date TIMESTAMP WITH TIME ZONE NOT NULL,
+    duration_minutes INTEGER DEFAULT 60,
+    session_type VARCHAR(50) DEFAULT 'lecture',
+    meeting_url TEXT,
+    max_students INTEGER,
+    is_published BOOLEAN DEFAULT FALSE,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+-- Assignments table
+CREATE TABLE IF NOT EXISTS assignments (
+    id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
+    course_id UUID REFERENCES courses(id) ON DELETE CASCADE,
+    teacher_id UUID REFERENCES teachers(id) ON DELETE CASCADE,
+    title VARCHAR(255) NOT NULL,
+    description TEXT NOT NULL,
+    instructions TEXT,
+    due_date TIMESTAMP WITH TIME ZONE,
+    max_score INTEGER DEFAULT 100,
+    assignment_type VARCHAR(50) DEFAULT 'homework',
+    is_published BOOLEAN DEFAULT FALSE,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+-- Assignment submissions
+CREATE TABLE IF NOT EXISTS assignment_submissions (
+    id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
+    assignment_id UUID REFERENCES assignments(id) ON DELETE CASCADE,
+    student_id UUID REFERENCES users(id) ON DELETE CASCADE,
+    submission_text TEXT,
+    file_urls TEXT[],
+    score INTEGER,
+    feedback TEXT,
+    graded_by UUID REFERENCES teachers(id),
+    submitted_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    graded_at TIMESTAMP WITH TIME ZONE,
+    status VARCHAR(50) DEFAULT 'submitted',
+    UNIQUE(assignment_id, student_id)
+);
+
+-- Gradebook for comprehensive grade tracking
+CREATE TABLE IF NOT EXISTS gradebook (
+    id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
+    student_id UUID REFERENCES users(id) ON DELETE CASCADE,
+    course_id UUID REFERENCES courses(id) ON DELETE CASCADE,
+    teacher_id UUID REFERENCES teachers(id) ON DELETE CASCADE,
+    item_type VARCHAR(50) NOT NULL,
+    item_id UUID,
+    item_name VARCHAR(255) NOT NULL,
+    score INTEGER NOT NULL,
+    max_score INTEGER NOT NULL,
+    weight DECIMAL(3,2) DEFAULT 1.0,
+    graded_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    notes TEXT
+);
+
+-- Announcements
+CREATE TABLE IF NOT EXISTS announcements (
+    id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
+    author_id UUID REFERENCES users(id) ON DELETE CASCADE,
+    course_id UUID REFERENCES courses(id) ON DELETE CASCADE,
+    title VARCHAR(255) NOT NULL,
+    content TEXT NOT NULL,
+    priority VARCHAR(20) DEFAULT 'normal',
+    target_audience VARCHAR(50) DEFAULT 'students',
+    is_published BOOLEAN DEFAULT FALSE,
+    published_at TIMESTAMP WITH TIME ZONE,
+    expires_at TIMESTAMP WITH TIME ZONE,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+-- System logs for admin dashboard
+CREATE TABLE IF NOT EXISTS system_logs (
+    id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
+    user_id UUID REFERENCES users(id) ON DELETE SET NULL,
+    action VARCHAR(100) NOT NULL,
+    resource_type VARCHAR(50),
+    resource_id UUID,
+    details JSONB,
+    ip_address INET,
+    user_agent TEXT,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+-- Add indexes
+CREATE INDEX IF NOT EXISTS idx_teachers_user_id ON teachers(user_id);
+CREATE INDEX IF NOT EXISTS idx_course_instructors_course_id ON course_instructors(course_id);
+CREATE INDEX IF NOT EXISTS idx_course_instructors_teacher_id ON course_instructors(teacher_id);
+CREATE INDEX IF NOT EXISTS idx_class_sessions_course_id ON class_sessions(course_id);
+CREATE INDEX IF NOT EXISTS idx_class_sessions_teacher_id ON class_sessions(teacher_id);
+CREATE INDEX IF NOT EXISTS idx_assignments_course_id ON assignments(course_id);
+CREATE INDEX IF NOT EXISTS idx_assignment_submissions_assignment_id ON assignment_submissions(assignment_id);
+CREATE INDEX IF NOT EXISTS idx_gradebook_student_id ON gradebook(student_id);
+CREATE INDEX IF NOT EXISTS idx_announcements_course_id ON announcements(course_id);
+CREATE INDEX IF NOT EXISTS idx_system_logs_user_id ON system_logs(user_id);
