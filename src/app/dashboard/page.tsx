@@ -148,56 +148,125 @@ export default function DashboardPage() {
           </p>
         </div>
 
-        {/* Stats Grid */}
+        {/* Enhanced Stats Grid */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-          <div className="bg-white rounded-lg shadow-sm border border-gray-100 p-6">
-            <div className="flex items-center">
-              <div className="flex-shrink-0">
-                <BookOpen className="h-8 w-8 text-primary-600" />
-              </div>
-              <div className="ml-4">
+          <div className="bg-white rounded-xl border shadow-sm p-6">
+            <div className="flex items-center justify-between">
+              <div>
                 <p className="text-sm font-medium text-gray-600">Total Courses</p>
-                <p className="text-2xl font-semibold text-gray-900">{dashboardData?.totalCourses}</p>
+                <p className="text-2xl font-bold text-gray-900">{dashboardData?.totalCourses || 0}</p>
+                <p className="text-xs text-green-600 mt-1">📚 Enrolled</p>
+              </div>
+              <div className="h-12 w-12 bg-primary-100 rounded-lg flex items-center justify-center">
+                <BookOpen className="h-6 w-6 text-primary-600" />
               </div>
             </div>
           </div>
 
-          <div className="bg-white rounded-lg shadow-sm border border-gray-100 p-6">
-            <div className="flex items-center">
-              <div className="flex-shrink-0">
-                <CheckCircle className="h-8 w-8 text-green-600" />
-              </div>
-              <div className="ml-4">
-                <p className="text-sm font-medium text-gray-600">Progress</p>
-                <p className="text-2xl font-semibold text-gray-900">
-                  {dashboardData?.completedLessons}/{dashboardData?.totalLessons}
+          <div className="bg-white rounded-xl border shadow-sm p-6">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium text-gray-600">Completed Lessons</p>
+                <p className="text-2xl font-bold text-gray-900">
+                  {dashboardData?.completedLessons || 0}/{dashboardData?.totalLessons || 0}
+                </p>
+                <p className="text-xs text-blue-600 mt-1">
+                  {(dashboardData?.totalLessons || 0) - (dashboardData?.completedLessons || 0)} remaining
                 </p>
               </div>
+              <div className="h-12 w-12 bg-green-100 rounded-lg flex items-center justify-center">
+                <CheckCircle className="h-6 w-6 text-green-600" />
+              </div>
+            </div>
+            <div className="mt-3">
+              <div className="flex items-center justify-between text-sm">
+                <span className="text-gray-500">Progress</span>
+                <span className="font-medium">
+                  {Math.round(((dashboardData?.completedLessons || 0) / (dashboardData?.totalLessons || 1)) * 100)}%
+                </span>
+              </div>
+              <div className="mt-1 w-full bg-gray-200 rounded-full h-2">
+                <div 
+                  className="bg-green-500 h-2 rounded-full transition-all duration-300" 
+                  style={{ 
+                    width: `${(dashboardData?.totalLessons || 0) > 0 ? 
+                      ((dashboardData?.completedLessons || 0) / (dashboardData?.totalLessons || 1)) * 100 : 0}%` 
+                  }}
+                ></div>
+              </div>
             </div>
           </div>
 
-          <div className="bg-white rounded-lg shadow-sm border border-gray-100 p-6">
-            <div className="flex items-center">
-              <div className="flex-shrink-0">
-                <Trophy className="h-8 w-8 text-yellow-600" />
+          <div className="bg-white rounded-xl border shadow-sm p-6">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium text-gray-600">Average Score</p>
+                <p className="text-2xl font-bold text-gray-900">{dashboardData?.averageScore || 0}%</p>
+                <p className="text-xs mt-1">
+                  {(dashboardData?.averageScore || 0) >= 80 ? (
+                    <span className="text-green-600">🎯 Excellent!</span>
+                  ) : (dashboardData?.averageScore || 0) >= 70 ? (
+                    <span className="text-blue-600">👍 Good work</span>
+                  ) : (dashboardData?.averageScore || 0) >= 60 ? (
+                    <span className="text-yellow-600">📈 Keep improving</span>
+                  ) : (
+                    <span className="text-red-600">💪 Practice more</span>
+                  )}
+                </p>
               </div>
-              <div className="ml-4">
-                <p className="text-sm font-medium text-gray-600">Avg. Score</p>
-                <p className="text-2xl font-semibold text-gray-900">{dashboardData?.averageScore}%</p>
+              <div className="h-12 w-12 bg-yellow-100 rounded-lg flex items-center justify-center">
+                <Trophy className="h-6 w-6 text-yellow-600" />
               </div>
             </div>
           </div>
 
-          <div className="bg-white rounded-lg shadow-sm border border-gray-100 p-6">
-            <div className="flex items-center">
-              <div className="flex-shrink-0">
-                <TrendingUp className="h-8 w-8 text-blue-600" />
-              </div>
-              <div className="ml-4">
+          <div className="bg-white rounded-xl border shadow-sm p-6">
+            <div className="flex items-center justify-between">
+              <div>
                 <p className="text-sm font-medium text-gray-600">Study Streak</p>
-                <p className="text-2xl font-semibold text-gray-900">{dashboardData?.streak} days</p>
+                <p className="text-2xl font-bold text-gray-900">{dashboardData?.streak || 0} days</p>
+                <p className="text-xs text-orange-600 mt-1">
+                  {(dashboardData?.streak || 0) >= 7 ? '🔥 On fire!' : 
+                   (dashboardData?.streak || 0) >= 3 ? '⚡ Great pace!' : '🌱 Keep going!'}
+                </p>
+              </div>
+              <div className="h-12 w-12 bg-orange-100 rounded-lg flex items-center justify-center">
+                <TrendingUp className="h-6 w-6 text-orange-600" />
               </div>
             </div>
+          </div>
+        </div>
+
+        {/* Weekly Progress Chart */}
+        <div className="bg-white rounded-xl border shadow-sm p-6 mb-8">
+          <h2 className="text-lg font-semibold text-gray-900 mb-4">Weekly Learning Activity</h2>
+          <div className="grid grid-cols-7 gap-2">
+            {['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'].map((day, index) => {
+              // Mock activity data - in real app, fetch from database
+              const activity = Math.random() * 100
+              return (
+                <div key={day} className="text-center">
+                  <div className="text-xs text-gray-500 mb-2">{day}</div>
+                  <div className="h-20 bg-gray-100 rounded flex items-end justify-center">
+                    <div 
+                      className={`w-full rounded transition-all duration-300 ${
+                        activity > 70 ? 'bg-green-500' : 
+                        activity > 40 ? 'bg-yellow-500' : 
+                        activity > 0 ? 'bg-gray-400' : 'bg-gray-200'
+                      }`}
+                      style={{ height: `${Math.max(activity, 5)}%` }}
+                    />
+                  </div>
+                  <div className="text-xs text-gray-500 mt-1">
+                    {Math.round(activity)}%
+                  </div>
+                </div>
+              )
+            })}
+          </div>
+          <div className="mt-4 flex items-center justify-between text-sm text-gray-600">
+            <span>This week's average: 68%</span>
+            <span className="text-green-600">↗ +12% from last week</span>
           </div>
         </div>
 

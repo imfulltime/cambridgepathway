@@ -1,5 +1,10 @@
+'use client'
+
+import { useEffect, useState } from 'react'
 import { Navigation } from '@/components/navigation'
 import { Footer } from '@/components/footer'
+import { createSupabaseClient } from '@/lib/supabase'
+import { useAuth } from '@/components/providers'
 import { 
   MessageCircle, 
   ThumbsUp, 
@@ -13,88 +18,36 @@ import {
 } from 'lucide-react'
 import Link from 'next/link'
 
-const forumPosts = [
-  {
-    id: '1',
-    title: 'How to approach quadratic equations in IGCSE Math?',
-    content: 'I\'m struggling with quadratic equations, especially when it comes to factoring. Can someone explain the best approach?',
-    author: {
-      name: 'Alex Chen',
-      role: 'Student',
-      avatar: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?ixlib=rb-4.0.3&auto=format&fit=crop&w=150&q=80'
-    },
-    category: 'Mathematics',
-    tags: ['quadratic-equations', 'algebra', 'help-needed'],
-    upvotes: 12,
-    downvotes: 1,
-    replies: 8,
-    createdAt: '2024-01-10T14:30:00Z',
-    isResolved: false,
-    isPinned: false
-  },
-  {
-    id: '2',
-    title: 'Best strategies for analyzing Shakespeare\'s Romeo and Juliet',
-    content: 'Our class is studying Romeo and Juliet for IGCSE English Literature. What are the key themes and literary devices I should focus on?',
-    author: {
-      name: 'Maria Rodriguez',
-      role: 'Student',
-      avatar: 'https://images.unsplash.com/photo-1494790108755-2616b612b123?ixlib=rb-4.0.3&auto=format&fit=crop&w=150&q=80'
-    },
-    category: 'English Literature',
-    tags: ['shakespeare', 'romeo-juliet', 'literary-analysis'],
-    upvotes: 18,
-    downvotes: 0,
-    replies: 15,
-    createdAt: '2024-01-09T16:45:00Z',
-    isResolved: true,
-    isPinned: true
-  },
-  {
-    id: '3',
-    title: 'Mock exam tips for Mathematics Paper 2',
-    content: 'The extended paper is coming up and I\'m nervous about the problem-solving questions. Any tips from those who have taken it?',
-    author: {
-      name: 'David Kim',
-      role: 'Student',
-      avatar: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?ixlib=rb-4.0.3&auto=format&fit=crop&w=150&q=80'
-    },
-    category: 'Mathematics',
-    tags: ['mock-exam', 'paper-2', 'problem-solving'],
-    upvotes: 25,
-    downvotes: 2,
-    replies: 12,
-    createdAt: '2024-01-08T10:20:00Z',
-    isResolved: false,
-    isPinned: false
-  },
-  {
-    id: '4',
-    title: 'Grammar rules for IGCSE English Language writing',
-    content: 'I keep making mistakes with conditionals and passive voice in my essays. Can someone share resources or tips?',
-    author: {
-      name: 'Sophie Thompson',
-      role: 'Student',
-      avatar: 'https://images.unsplash.com/photo-1438761681033-6461ffad8d80?ixlib=rb-4.0.3&auto=format&fit=crop&w=150&q=80'
-    },
-    category: 'English Language',
-    tags: ['grammar', 'writing', 'conditionals', 'passive-voice'],
-    upvotes: 14,
-    downvotes: 1,
-    replies: 9,
-    createdAt: '2024-01-07T13:15:00Z',
-    isResolved: false,
-    isPinned: false
+interface ForumPost {
+  id: string
+  title: string
+  content: string
+  category: string
+  tags: string[]
+  upvotes: number
+  downvotes: number
+  replies: number
+  created_at: string
+  is_resolved: boolean
+  is_pinned: boolean
+  author: {
+    first_name: string
+    last_name: string
+    role: string
   }
-]
+}
 
-const categories = [
-  { name: 'All Topics', count: 156, color: 'primary' },
-  { name: 'Mathematics', count: 67, color: 'blue' },
-  { name: 'English Literature', count: 45, color: 'green' },
-  { name: 'English Language', count: 32, color: 'purple' },
-  { name: 'General Discussion', count: 12, color: 'gray' }
-]
+interface Category {
+  name: string
+  count: number
+  color: string
+}
+
+interface CommunityStats {
+  totalMembers: number
+  totalPosts: number
+  activeToday: number
+}
 
 const popularTags = [
   'algebra', 'shakespeare', 'essay-writing', 'geometry', 'poetry', 
@@ -102,6 +55,96 @@ const popularTags = [
 ]
 
 export default function ForumPage() {
+  const { user } = useAuth()
+  const [posts, setPosts] = useState<ForumPost[]>([])
+  const [categories, setCategories] = useState<Category[]>([])
+  const [stats, setStats] = useState<CommunityStats>({ totalMembers: 0, totalPosts: 0, activeToday: 0 })
+  const [loading, setLoading] = useState(true)
+  const [showNewPostModal, setShowNewPostModal] = useState(false)
+  const supabase = createSupabaseClient()
+
+  useEffect(() => {
+    fetchForumData()
+  }, [])
+
+  const fetchForumData = async () => {
+    try {
+      // Fetch forum posts with author information
+      const { data: postsData } = await supabase
+        .from('forum_posts')
+        .select(`
+          id,
+          title,
+          content,
+          category,
+          tags,
+          upvotes,
+          downvotes,
+          is_resolved,
+          is_pinned,
+          created_at,
+          users (first_name, last_name, role)
+        `)
+        .order('is_pinned', { ascending: false })
+        .order('created_at', { ascending: false })
+        .limit(20)
+
+      // Count replies for each post
+      const postsWithReplies = await Promise.all((postsData || []).map(async (post) => {
+        const { count } = await supabase
+          .from('forum_replies')
+          .select('*', { count: 'exact', head: true })
+          .eq('post_id', post.id)
+
+        return {
+          ...post,
+          replies: count || 0,
+          author: Array.isArray(post.users) ? post.users[0] || { first_name: 'Unknown', last_name: 'User', role: 'Student' }
+            : post.users || { first_name: 'Unknown', last_name: 'User', role: 'Student' }
+        }
+      }))
+
+      setPosts(postsWithReplies as ForumPost[])
+
+      // Fetch category counts
+      const { data: categoryData } = await supabase
+        .from('forum_posts')
+        .select('category')
+
+      const categoryMap = (categoryData || []).reduce((acc: Record<string, number>, post) => {
+        acc[post.category] = (acc[post.category] || 0) + 1
+        return acc
+      }, {})
+
+      const categoriesWithCounts = [
+        { name: 'All Topics', count: categoryData?.length || 0, color: 'primary' },
+        { name: 'Mathematics', count: categoryMap['Mathematics'] || 0, color: 'blue' },
+        { name: 'English Literature', count: categoryMap['English Literature'] || 0, color: 'green' },
+        { name: 'English Language', count: categoryMap['English Language'] || 0, color: 'purple' },
+        { name: 'General Discussion', count: categoryMap['General Discussion'] || 0, color: 'gray' }
+      ]
+
+      setCategories(categoriesWithCounts)
+
+      // Fetch community stats
+      const [{ count: memberCount }, { count: postCount }] = await Promise.all([
+        supabase.from('users').select('*', { count: 'exact', head: true }),
+        supabase.from('forum_posts').select('*', { count: 'exact', head: true })
+      ])
+
+      setStats({
+        totalMembers: memberCount || 0,
+        totalPosts: postCount || 0,
+        activeToday: Math.floor((memberCount || 0) * 0.1) // Estimate active users
+      })
+
+    } catch (error) {
+      console.error('Error fetching forum data:', error)
+    } finally {
+      setLoading(false)
+    }
+  }
+
   const getTimeAgo = (timestamp: string) => {
     const date = new Date(timestamp)
     const now = new Date()
@@ -111,6 +154,41 @@ export default function ForumPage() {
     if (diffInSeconds < 3600) return `${Math.floor(diffInSeconds / 60)}m ago`
     if (diffInSeconds < 86400) return `${Math.floor(diffInSeconds / 3600)}h ago`
     return `${Math.floor(diffInSeconds / 86400)}d ago`
+  }
+
+  const handleVote = async (postId: string, isUpvote: boolean) => {
+    if (!user) return
+
+    try {
+      // Check if user already voted
+      const { data: existingVote } = await supabase
+        .from('forum_votes')
+        .select('*')
+        .eq('post_id', postId)
+        .eq('user_id', user.id)
+        .single()
+
+      if (existingVote) {
+        // Update existing vote or remove if same
+        if (existingVote.is_upvote === isUpvote) {
+          await supabase.from('forum_votes').delete().eq('id', existingVote.id)
+        } else {
+          await supabase.from('forum_votes').update({ is_upvote: isUpvote }).eq('id', existingVote.id)
+        }
+      } else {
+        // Create new vote
+        await supabase.from('forum_votes').insert({
+          post_id: postId,
+          user_id: user.id,
+          is_upvote: isUpvote
+        })
+      }
+
+      // Refresh posts to show updated counts
+      fetchForumData()
+    } catch (error) {
+      console.error('Error voting:', error)
+    }
   }
 
   return (
@@ -131,7 +209,10 @@ export default function ForumPage() {
               <Search className="w-4 h-4 mr-2" />
               Search
             </button>
-            <button className="inline-flex items-center px-4 py-2 border border-transparent rounded-lg text-sm font-medium text-white bg-primary-600 hover:bg-primary-700">
+            <button 
+              onClick={() => setShowNewPostModal(true)}
+              className="inline-flex items-center px-4 py-2 border border-transparent rounded-lg text-sm font-medium text-white bg-primary-600 hover:bg-primary-700"
+            >
               <Plus className="w-4 h-4 mr-2" />
               New Post
             </button>
@@ -163,88 +244,115 @@ export default function ForumPage() {
 
             {/* Forum Posts */}
             <div className="space-y-4">
-              {forumPosts.map((post) => (
-                <div key={post.id} className="bg-white rounded-lg shadow-sm border border-gray-100 p-6 hover:shadow-md transition-shadow">
-                  <div className="flex items-start space-x-4">
-                    <img
-                      src={post.author.avatar}
-                      alt={post.author.name}
-                      className="w-10 h-10 rounded-full object-cover"
-                    />
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center space-x-2 mb-2">
-                        {post.isPinned && (
-                          <span className="inline-flex items-center px-2 py-1 rounded text-xs font-medium bg-yellow-100 text-yellow-800">
-                            📌 Pinned
-                          </span>
-                        )}
-                        {post.isResolved && (
-                          <span className="inline-flex items-center px-2 py-1 rounded text-xs font-medium bg-green-100 text-green-800">
-                            ✅ Resolved
-                          </span>
-                        )}
-                        <span className="inline-flex items-center px-2 py-1 rounded text-xs font-medium bg-primary-100 text-primary-800">
-                          {post.category}
-                        </span>
+              {loading ? (
+                <div className="space-y-4">
+                  {[1, 2, 3].map((i) => (
+                    <div key={i} className="bg-white rounded-lg shadow-sm border border-gray-100 p-6">
+                      <div className="animate-pulse">
+                        <div className="h-4 bg-gray-200 rounded w-3/4 mb-2"></div>
+                        <div className="h-3 bg-gray-200 rounded w-1/2 mb-4"></div>
+                        <div className="h-3 bg-gray-200 rounded w-full mb-2"></div>
+                        <div className="h-3 bg-gray-200 rounded w-2/3"></div>
                       </div>
-                      
-                      <Link href={`/forum/post/${post.id}`} className="block group">
-                        <h3 className="text-lg font-semibold text-gray-900 group-hover:text-primary-600 transition-colors">
-                          {post.title}
-                        </h3>
-                      </Link>
-                      
-                      <p className="text-gray-600 mt-2 line-clamp-2">
-                        {post.content}
-                      </p>
-
-                      {/* Tags */}
-                      <div className="flex flex-wrap gap-2 mt-3">
-                        {post.tags.map((tag) => (
-                          <span
-                            key={tag}
-                            className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-gray-100 text-gray-600 hover:bg-gray-200 cursor-pointer"
-                          >
-                            <Tag className="w-3 h-3 mr-1" />
-                            {tag}
-                          </span>
-                        ))}
+                    </div>
+                  ))}
+                </div>
+              ) : posts.length === 0 ? (
+                <div className="text-center py-12">
+                  <MessageCircle className="w-16 h-16 mx-auto text-gray-400 mb-4" />
+                  <h3 className="text-lg font-medium text-gray-900 mb-2">No posts yet</h3>
+                  <p className="text-gray-600">Be the first to start a discussion!</p>
+                </div>
+              ) : (
+                posts.map((post) => (
+                  <div key={post.id} className="bg-white rounded-lg shadow-sm border border-gray-100 p-6 hover:shadow-md transition-shadow">
+                    <div className="flex items-start space-x-4">
+                      <div className="w-10 h-10 rounded-full bg-primary-500 flex items-center justify-center text-white font-semibold">
+                        {post.author.first_name[0]}{post.author.last_name[0]}
                       </div>
-
-                      {/* Post Meta */}
-                      <div className="flex items-center justify-between mt-4">
-                        <div className="flex items-center space-x-4 text-sm text-gray-500">
-                          <div className="flex items-center">
-                            <span className="font-medium text-gray-700">{post.author.name}</span>
-                            <span className="ml-1">({post.author.role})</span>
-                          </div>
-                          <div className="flex items-center">
-                            <Clock className="w-4 h-4 mr-1" />
-                            {getTimeAgo(post.createdAt)}
-                          </div>
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center space-x-2 mb-2">
+                          {post.is_pinned && (
+                            <span className="inline-flex items-center px-2 py-1 rounded text-xs font-medium bg-yellow-100 text-yellow-800">
+                              📌 Pinned
+                            </span>
+                          )}
+                          {post.is_resolved && (
+                            <span className="inline-flex items-center px-2 py-1 rounded text-xs font-medium bg-green-100 text-green-800">
+                              ✅ Resolved
+                            </span>
+                          )}
+                          <span className="inline-flex items-center px-2 py-1 rounded text-xs font-medium bg-primary-100 text-primary-800">
+                            {post.category}
+                          </span>
                         </div>
                         
-                        <div className="flex items-center space-x-4 text-sm">
-                          <div className="flex items-center space-x-1">
-                            <button className="flex items-center space-x-1 text-gray-500 hover:text-green-600">
-                              <ThumbsUp className="w-4 h-4" />
-                              <span>{post.upvotes}</span>
-                            </button>
-                            <button className="flex items-center space-x-1 text-gray-500 hover:text-red-600">
-                              <ThumbsDown className="w-4 h-4" />
-                              <span>{post.downvotes}</span>
-                            </button>
+                        <Link href={`/forum/post/${post.id}`} className="block group">
+                          <h3 className="text-lg font-semibold text-gray-900 group-hover:text-primary-600 transition-colors">
+                            {post.title}
+                          </h3>
+                        </Link>
+                        
+                        <p className="text-gray-600 mt-2 line-clamp-2">
+                          {post.content}
+                        </p>
+
+                        {/* Tags */}
+                        <div className="flex flex-wrap gap-2 mt-3">
+                          {Array.isArray(post.tags) && post.tags.map((tag) => (
+                            <span
+                              key={tag}
+                              className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-gray-100 text-gray-600 hover:bg-gray-200 cursor-pointer"
+                            >
+                              <Tag className="w-3 h-3 mr-1" />
+                              {tag}
+                            </span>
+                          ))}
+                        </div>
+
+                        {/* Post Meta */}
+                        <div className="flex items-center justify-between mt-4">
+                          <div className="flex items-center space-x-4 text-sm text-gray-500">
+                            <div className="flex items-center">
+                              <span className="font-medium text-gray-700">
+                                {post.author.first_name} {post.author.last_name}
+                              </span>
+                              <span className="ml-1">({post.author.role})</span>
+                            </div>
+                            <div className="flex items-center">
+                              <Clock className="w-4 h-4 mr-1" />
+                              {getTimeAgo(post.created_at)}
+                            </div>
                           </div>
-                          <div className="flex items-center text-gray-500">
-                            <MessageCircle className="w-4 h-4 mr-1" />
-                            <span>{post.replies} replies</span>
+                          
+                          <div className="flex items-center space-x-4 text-sm">
+                            <div className="flex items-center space-x-1">
+                              <button 
+                                onClick={() => handleVote(post.id, true)}
+                                className="flex items-center space-x-1 text-gray-500 hover:text-green-600 transition-colors"
+                              >
+                                <ThumbsUp className="w-4 h-4" />
+                                <span>{post.upvotes}</span>
+                              </button>
+                              <button 
+                                onClick={() => handleVote(post.id, false)}
+                                className="flex items-center space-x-1 text-gray-500 hover:text-red-600 transition-colors"
+                              >
+                                <ThumbsDown className="w-4 h-4" />
+                                <span>{post.downvotes}</span>
+                              </button>
+                            </div>
+                            <div className="flex items-center text-gray-500">
+                              <MessageCircle className="w-4 h-4 mr-1" />
+                              <span>{post.replies} replies</span>
+                            </div>
                           </div>
                         </div>
                       </div>
                     </div>
                   </div>
-                </div>
-              ))}
+                ))
+              )}
             </div>
 
             {/* Load More */}
@@ -310,21 +418,21 @@ export default function ForumPage() {
                       <Users className="w-5 h-5 text-primary-600 mr-2" />
                       <span className="text-gray-700">Total Members</span>
                     </div>
-                    <span className="font-semibold text-gray-900">1,247</span>
+                    <span className="font-semibold text-gray-900">{stats.totalMembers}</span>
                   </div>
                   <div className="flex items-center justify-between">
                     <div className="flex items-center">
                       <MessageCircle className="w-5 h-5 text-green-600 mr-2" />
                       <span className="text-gray-700">Total Posts</span>
                     </div>
-                    <span className="font-semibold text-gray-900">3,456</span>
+                    <span className="font-semibold text-gray-900">{stats.totalPosts}</span>
                   </div>
                   <div className="flex items-center justify-between">
                     <div className="flex items-center">
                       <TrendingUp className="w-5 h-5 text-blue-600 mr-2" />
                       <span className="text-gray-700">Active Today</span>
                     </div>
-                    <span className="font-semibold text-gray-900">89</span>
+                    <span className="font-semibold text-gray-900">{stats.activeToday}</span>
                   </div>
                 </div>
               </div>
