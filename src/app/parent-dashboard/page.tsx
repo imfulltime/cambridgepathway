@@ -85,8 +85,9 @@ export default function ParentDashboard() {
         // Get total completed lessons
         const { data: progress } = await supabase
           .from('progress')
-          .select('lesson_id, completed, score, time_spent_minutes')
-          .eq('user_id', studentId);
+          .select('lesson_id, completed, score, time_spent_minutes, created_at')
+          .eq('user_id', studentId)
+          .order('created_at', { ascending: false });
 
         // Get total lessons from enrolled courses
         const courseIds = enrollments?.map(e => e.course_id) || [];
@@ -113,24 +114,32 @@ export default function ParentDashboard() {
 
         const completedLessons = progress?.filter(p => p.completed).length || 0;
         const totalLessons = lessons?.length || 0;
-        const averageScore = progress?.length > 0 
+        const averageScore = (progress && progress.length > 0)
           ? progress.filter(p => p.score !== null).reduce((sum, p) => sum + (p.score || 0), 0) / progress.filter(p => p.score !== null).length
           : 0;
         const totalTime = progress?.reduce((sum, p) => sum + (p.time_spent_minutes || 0), 0) || 0;
 
+        const userData = Array.isArray(student?.users) ? student?.users[0] : student?.users;
+        const studentData = Array.isArray(student?.students) ? student?.students[0] : student?.students;
+
         return {
           id: studentId,
-          firstName: student?.users?.first_name || '',
-          lastName: student?.users?.last_name || '',
-          gradeLevel: student?.students?.grade_level || '',
+          firstName: userData?.first_name || '',
+          lastName: userData?.last_name || '',
+          gradeLevel: studentData?.grade_level || '',
           totalCourses: enrollments?.length || 0,
           completedLessons,
           totalLessons,
           averageScore: Math.round(averageScore),
           currentStreak: 0, // TODO: Calculate streak
-          lastActivity: progress?.length > 0 ? progress[0].created_at : '',
+          lastActivity: (progress && progress.length > 0) ? progress[0].created_at : '',
           upcomingAssignments: assignments?.length || 0,
-          recentGrades: grades || [],
+          recentGrades: grades?.map(grade => ({
+            itemName: grade.item_name || '',
+            score: grade.score || 0,
+            maxScore: grade.max_score || 0,
+            gradedAt: grade.graded_at || '',
+          })) || [],
         };
       });
 

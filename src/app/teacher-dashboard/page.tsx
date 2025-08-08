@@ -110,7 +110,7 @@ export default function TeacherDashboard() {
 
       // Process course data
       const coursesData = courseAssignments?.map(ca => {
-        const course = ca.courses;
+        const course = Array.isArray(ca.courses) ? ca.courses[0] : ca.courses;
         const courseEnrollments = enrollments?.filter(e => e.course_id === ca.course_id) || [];
         const courseProgress = progress?.filter(p => p.course_id === ca.course_id) || [];
         
@@ -122,10 +122,10 @@ export default function TeacherDashboard() {
         const averageScore = scores.length > 0 ? scores.reduce((sum, score) => sum + score, 0) / scores.length : 0;
 
         return {
-          id: course.id,
-          title: course.title,
-          subject: course.subject,
-          level: course.level,
+          id: course?.id || '',
+          title: course?.title || '',
+          subject: course?.subject || '',
+          level: course?.level || '',
           enrolledStudents: courseEnrollments.length,
           completionRate: Math.round(completionRate),
           averageScore: Math.round(averageScore),
@@ -157,14 +157,19 @@ export default function TeacherDashboard() {
         .order('created_at', { ascending: false })
         .limit(5);
 
-      const activityData: RecentActivity[] = recentPosts?.map(post => ({
-        id: post.id,
-        type: 'question' as const,
-        studentName: `${post.users?.first_name} ${post.users?.last_name}`,
-        courseName: post.courses?.title || '',
-        details: post.title,
-        timestamp: post.created_at,
-      })) || [];
+      const activityData: RecentActivity[] = recentPosts?.map(post => {
+        const user = Array.isArray(post.users) ? post.users[0] : post.users;
+        const course = Array.isArray(post.courses) ? post.courses[0] : post.courses;
+        
+        return {
+          id: post.id,
+          type: 'question' as const,
+          studentName: `${user?.first_name || ''} ${user?.last_name || ''}`.trim(),
+          courseName: course?.title || '',
+          details: post.title,
+          timestamp: post.created_at,
+        };
+      }) || [];
 
       setRecentActivity(activityData);
 
