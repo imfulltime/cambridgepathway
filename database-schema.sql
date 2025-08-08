@@ -342,3 +342,25 @@ SELECT
     50,
     true
 FROM courses c WHERE c.title = 'IGCSE English Literature';
+
+-- Seed sample quizzes and questions for first 2 lessons of each course
+INSERT INTO quizzes (lesson_id, title, description, time_limit_minutes, passing_score, is_published)
+SELECT l.id, 'Quick Check', 'Short quiz for the lesson', 10, 70, true
+FROM lessons l
+JOIN courses c ON c.id = l.course_id
+WHERE (c.title = 'IGCSE Mathematics' AND l.order_index IN (1,2))
+   OR (c.title = 'IGCSE English Literature' AND l.order_index IN (1,2));
+
+-- For each quiz, add 3 MCQs and 1 short answer
+WITH qz AS (
+  SELECT q.id AS quiz_id FROM quizzes q
+  JOIN lessons l ON l.id = q.lesson_id
+  JOIN courses c ON c.id = l.course_id
+  WHERE (c.title = 'IGCSE Mathematics' AND l.order_index IN (1,2))
+     OR (c.title = 'IGCSE English Literature' AND l.order_index IN (1,2))
+)
+INSERT INTO questions (quiz_id, type, question_text, options, correct_answer, points, order_index)
+SELECT quiz_id, 'multiple_choice', 'Sample MCQ ' || gs::text, '["A","B","C","D"]'::jsonb, 'A', 1, gs
+FROM qz, generate_series(1,3) AS gs
+UNION ALL
+SELECT quiz_id, 'short_answer', 'Short answer: type A', NULL, 'A', 2, 4 FROM qz;
