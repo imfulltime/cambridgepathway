@@ -105,6 +105,12 @@ export default function SignUpPage() {
 
       if (error) throw error
 
+      // If email confirmations are enabled, session will be null
+      if (!data.session) {
+        router.push('/auth/verify-email')
+        return
+      }
+
       if (data.user) {
         // Create user profile in database
         const { error: profileError } = await supabase
