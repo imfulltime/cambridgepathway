@@ -364,3 +364,162 @@ SELECT quiz_id, 'multiple_choice', 'Sample MCQ ' || gs::text, '["A","B","C","D"]
 FROM qz, generate_series(1,3) AS gs
 UNION ALL
 SELECT quiz_id, 'short_answer', 'Short answer: type A', NULL, 'A', 2, 4 FROM qz;
+
+-- -----------------------------------------------------------------------------
+-- Seed: Real English Literature Lesson 1 content and quiz (idempotent)
+-- -----------------------------------------------------------------------------
+DO $$
+DECLARE 
+  v_course_id uuid;
+  v_lesson_id uuid;
+  v_quiz_id uuid;
+BEGIN
+  -- Find English Literature course
+  SELECT id INTO v_course_id 
+  FROM courses 
+  WHERE title = 'IGCSE English Literature'
+  LIMIT 1;
+
+  IF v_course_id IS NULL THEN
+    RAISE NOTICE 'Course "IGCSE English Literature" not found. Skipping.';
+    RETURN;
+  END IF;
+
+  -- Update Lesson 1 with real content (or create if missing)
+  UPDATE lessons
+  SET 
+    title = 'Unseen Poetry: Analysing Imagery, Tone, and Structure',
+    description = 'Learn how to analyse unseen poems by focusing on imagery, tone and structure. Assessment focus: AO1 (understanding), AO2 (analysis of language and structure).',
+    content = $$
+
+Learning Objectives
+- Identify imagery, tone, and structural choices in unseen poems (AO2)
+- Explain how writers create meaning and effect (AO1/AO2)
+- Construct short analytical responses using evidence (PEE/PEEL)
+
+Key Terms
+- Imagery: descriptive language that appeals to the senses
+- Tone: the writer’s attitude/feeling (e.g. reflective, joyful, sombre)
+- Structure: how ideas are organised (stanzas, line length, caesura, enjambment)
+
+Strategy (PEEL)
+- Point: a clear claim about meaning or effect
+- Evidence: a concise quotation
+- Explain: how language/structure creates that effect
+- Link: connect back to the question
+
+Unseen Poem (for practice)
+"Morning"
+
+Grey morning spills across the slate-grey street;
+The kettle hums, a small domestic sun.
+Between the window’s breath and radiator’s heat,
+I warm my hands and think of what I’ve done.
+
+Model Analysis (Short)
+The poet establishes a reflective tone through quiet domestic images. The metaphor “kettle hums, a small domestic sun” suggests comfort and warmth, while “window’s breath” personifies the room, adding intimacy. Structurally, short lines and end-stopped punctuation slow the pace, mirroring the speaker’s thoughtful mood.
+
+Success Criteria
+- Use precise subject terms (metaphor, personification, tone)
+- Embed brief quotations
+- Explain how language choices shape meaning
+- Refer to structure when relevant
+
+Practice Tasks
+1) Identify two pieces of imagery and explain their effects.
+2) What is the tone? Use one quotation to support your view.
+3) How do structure and punctuation contribute to the overall mood?
+$$,
+    video_url = 'https://www.youtube.com/embed/dQw4w9WgXcQ', -- replace with your lesson video
+    worksheet_url = 'https://example.com/worksheets/unseen-poetry.pdf', -- replace with your PDF
+    is_published = true,
+    updated_at = NOW()
+  WHERE course_id = v_course_id AND order_index = 1
+  RETURNING id INTO v_lesson_id;
+
+  IF v_lesson_id IS NULL THEN
+    INSERT INTO lessons (
+      course_id, title, description, content, video_url, worksheet_url, order_index, duration_minutes, is_published
+    ) VALUES (
+      v_course_id,
+      'Unseen Poetry: Analysing Imagery, Tone, and Structure',
+      'Learn how to analyse unseen poems by focusing on imagery, tone and structure. Assessment focus: AO1 (understanding), AO2 (analysis of language and structure).',
+      $$See content above (learning objectives, key terms, PEEL strategy, poem, model analysis, success criteria, practice tasks).$$,
+      'https://www.youtube.com/embed/dQw4w9WgXcQ',
+      'https://example.com/worksheets/unseen-poetry.pdf',
+      1,
+      45,
+      true
+    )
+    RETURNING id INTO v_lesson_id;
+  END IF;
+
+  -- Ensure a quiz exists for this lesson
+  SELECT id INTO v_quiz_id FROM quizzes WHERE lesson_id = v_lesson_id LIMIT 1;
+
+  IF v_quiz_id IS NULL THEN
+    INSERT INTO quizzes (lesson_id, title, description, time_limit_minutes, passing_score, is_published)
+    VALUES (v_lesson_id, 'Unseen Poetry Quick Check', 'Check your understanding of imagery, tone, and structure', 10, 70, true)
+    RETURNING id INTO v_quiz_id;
+  ELSE
+    UPDATE quizzes
+    SET title = 'Unseen Poetry Quick Check',
+        description = 'Check your understanding of imagery, tone, and structure',
+        time_limit_minutes = 10,
+        passing_score = 70,
+        is_published = true,
+        updated_at = NOW()
+    WHERE id = v_quiz_id;
+  END IF;
+
+  -- Replace questions with a real set
+  DELETE FROM questions WHERE quiz_id = v_quiz_id;
+
+  -- Q1: Mood
+  INSERT INTO questions (quiz_id, type, question_text, options, correct_answer, points, order_index)
+  VALUES (
+    v_quiz_id,
+    'multiple_choice'::question_type,
+    'Which best describes the overall mood of the poem?',
+    '["Reflective","Joyful","Fearful","Angry"]'::jsonb,
+    'Reflective',
+    1,
+    1
+  );
+
+  -- Q2: Device (metaphor)
+  INSERT INTO questions (quiz_id, type, question_text, options, correct_answer, points, order_index)
+  VALUES (
+    v_quiz_id,
+    'multiple_choice'::question_type,
+    'In the phrase "the kettle hums, a small domestic sun", which device is used?',
+    '["Simile","Metaphor","Alliteration","Personification"]'::jsonb,
+    'Metaphor',
+    1,
+    2
+  );
+
+  -- Q3: Device (personification)
+  INSERT INTO questions (quiz_id, type, question_text, options, correct_answer, points, order_index)
+  VALUES (
+    v_quiz_id,
+    'multiple_choice'::question_type,
+    '“window’s breath” is an example of:',
+    '["Hyperbole","Oxymoron","Personification","Onomatopoeia"]'::jsonb,
+    'Personification',
+    1,
+    3
+  );
+
+  -- Q4: Short answer on structure
+  INSERT INTO questions (quiz_id, type, question_text, options, correct_answer, points, order_index)
+  VALUES (
+    v_quiz_id,
+    'short_answer'::question_type,
+    'Briefly explain how the poem’s structure or punctuation contributes to its mood.',
+    NULL,
+    'Accept answers that reference short lines/end-stopped punctuation slowing pace to create reflective tone.',
+    2,
+    4
+  );
+END $$;
