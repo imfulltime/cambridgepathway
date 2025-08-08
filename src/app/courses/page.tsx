@@ -1,7 +1,7 @@
 import { Navigation } from '@/components/navigation'
 import { Footer } from '@/components/footer'
-import { BookOpen, Clock, Users, Star } from 'lucide-react'
-import Link from 'next/link'
+import { BookOpen } from 'lucide-react'
+import { CoursesList } from './courses-list'
 
 const courses = [
   {
@@ -86,85 +86,9 @@ export default function CoursesPage() {
           </div>
         </div>
 
-        {/* Courses Grid */}
+        {/* Courses Grid (Supabase-backed) */}
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16">
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-            {courses.map((course) => (
-              <div key={course.id} className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden hover:shadow-lg transition-shadow">
-                <div className="relative">
-                  <img
-                    src={course.image}
-                    alt={course.title}
-                    className="w-full h-48 object-cover"
-                  />
-                  <div className="absolute top-4 left-4">
-                    <span className="bg-primary-600 text-white px-3 py-1 rounded-full text-sm font-medium">
-                      {course.level}
-                    </span>
-                  </div>
-                  <div className="absolute top-4 right-4">
-                    <span className="bg-white bg-opacity-90 text-gray-900 px-3 py-1 rounded-full text-sm font-bold">
-                      {course.price}
-                    </span>
-                  </div>
-                </div>
-
-                <div className="p-6">
-                  <h3 className="text-xl font-bold text-gray-900 mb-2">
-                    {course.title}
-                  </h3>
-                  <p className="text-gray-600 text-sm mb-4 line-clamp-2">
-                    {course.description}
-                  </p>
-
-                  {/* Course Stats */}
-                  <div className="flex items-center justify-between text-sm text-gray-500 mb-4">
-                    <div className="flex items-center space-x-4">
-                      <div className="flex items-center">
-                        <Clock className="w-4 h-4 mr-1" />
-                        <span>{course.duration}</span>
-                      </div>
-                      <div className="flex items-center">
-                        <BookOpen className="w-4 h-4 mr-1" />
-                        <span>{course.lessons} lessons</span>
-                      </div>
-                    </div>
-                    <div className="flex items-center">
-                      <Star className="w-4 h-4 mr-1 text-yellow-400 fill-current" />
-                      <span className="font-medium">{course.rating}</span>
-                    </div>
-                  </div>
-
-                  {/* Instructor */}
-                  <div className="flex items-center text-sm text-gray-600 mb-4">
-                    <Users className="w-4 h-4 mr-1" />
-                    <span>Instructor: {course.instructor}</span>
-                  </div>
-
-                  {/* Features */}
-                  <div className="mb-6">
-                    <h4 className="text-sm font-semibold text-gray-900 mb-2">What you'll learn:</h4>
-                    <ul className="text-sm text-gray-600 space-y-1">
-                      {course.features.slice(0, 3).map((feature, index) => (
-                        <li key={index} className="flex items-start">
-                          <span className="w-1.5 h-1.5 bg-primary-600 rounded-full mt-2 mr-2 flex-shrink-0"></span>
-                          {feature}
-                        </li>
-                      ))}
-                    </ul>
-                  </div>
-
-                  {/* CTA Button */}
-                  <Link
-                    href={`/courses/${course.id}`}
-                    className="w-full bg-primary-600 text-white py-3 px-4 rounded-lg font-semibold hover:bg-primary-700 transition-colors text-center block"
-                  >
-                    Start Learning
-                  </Link>
-                </div>
-              </div>
-            ))}
-          </div>
+          <CoursesList />
         </div>
 
         {/* Coming Soon Section */}

@@ -267,10 +267,14 @@ ALTER TABLE notifications ENABLE ROW LEVEL SECURITY;
 -- Users can only see their own profile
 CREATE POLICY "Users can view own profile" ON users FOR SELECT USING (auth.uid() = id);
 CREATE POLICY "Users can update own profile" ON users FOR UPDATE USING (auth.uid() = id);
+-- Users can insert own profile after sign up
+CREATE POLICY "Users can insert own profile" ON users FOR INSERT WITH CHECK (auth.uid() = id);
 
 -- Students can only see their own data
 CREATE POLICY "Students can view own data" ON students FOR SELECT USING (auth.uid() = user_id);
 CREATE POLICY "Students can update own data" ON students FOR UPDATE USING (auth.uid() = user_id);
+-- Students can insert their own student record
+CREATE POLICY "Students can insert own data" ON students FOR INSERT WITH CHECK (auth.uid() = user_id);
 
 -- Progress is private to the user
 CREATE POLICY "Users can view own progress" ON progress FOR SELECT USING (auth.uid() = user_id);
@@ -287,6 +291,30 @@ CREATE POLICY "Anyone can view forum posts" ON forum_posts FOR SELECT USING (tru
 CREATE POLICY "Authenticated users can create posts" ON forum_posts FOR INSERT WITH CHECK (auth.role() = 'authenticated');
 CREATE POLICY "Users can update own posts" ON forum_posts FOR UPDATE USING (auth.uid() = user_id);
 CREATE POLICY "Users can delete own posts" ON forum_posts FOR DELETE USING (auth.uid() = user_id);
+
+-- Replies policies
+CREATE POLICY "Anyone can view replies" ON forum_replies FOR SELECT USING (true);
+CREATE POLICY "Authenticated users can create replies" ON forum_replies FOR INSERT WITH CHECK (auth.role() = 'authenticated');
+CREATE POLICY "Users can update own replies" ON forum_replies FOR UPDATE USING (auth.uid() = user_id);
+CREATE POLICY "Users can delete own replies" ON forum_replies FOR DELETE USING (auth.uid() = user_id);
+
+-- Votes policies
+CREATE POLICY "Anyone can view votes" ON forum_votes FOR SELECT USING (true);
+CREATE POLICY "Authenticated users can create votes" ON forum_votes FOR INSERT WITH CHECK (auth.role() = 'authenticated');
+CREATE POLICY "Users can update own votes" ON forum_votes FOR UPDATE USING (auth.uid() = user_id);
+CREATE POLICY "Users can delete own votes" ON forum_votes FOR DELETE USING (auth.uid() = user_id);
+
+-- Quiz answers visibility per user via attempt
+CREATE POLICY "Users view own quiz answers" ON quiz_answers FOR SELECT USING (
+  EXISTS (
+    SELECT 1 FROM quiz_attempts qa WHERE qa.id = attempt_id AND qa.user_id = auth.uid()
+  )
+);
+CREATE POLICY "Users insert quiz answers" ON quiz_answers FOR INSERT WITH CHECK (
+  EXISTS (
+    SELECT 1 FROM quiz_attempts qa WHERE qa.id = attempt_id AND qa.user_id = auth.uid()
+  )
+);
 
 -- Insert sample data
 INSERT INTO courses (title, description, subject, level, total_lessons, duration, instructor_name, is_published) VALUES
@@ -314,3 +342,25 @@ SELECT
     50,
     true
 FROM courses c WHERE c.title = 'IGCSE English Literature';
+
+-- Seed sample quizzes and questions for first 2 lessons of each course
+INSERT INTO quizzes (lesson_id, title, description, time_limit_minutes, passing_score, is_published)
+SELECT l.id, 'Quick Check', 'Short quiz for the lesson', 10, 70, true
+FROM lessons l
+JOIN courses c ON c.id = l.course_id
+WHERE (c.title = 'IGCSE Mathematics' AND l.order_index IN (1,2))
+   OR (c.title = 'IGCSE English Literature' AND l.order_index IN (1,2));
+
+-- For each quiz, add 3 MCQs and 1 short answer
+WITH qz AS (
+  SELECT q.id AS quiz_id FROM quizzes q
+  JOIN lessons l ON l.id = q.lesson_id
+  JOIN courses c ON c.id = l.course_id
+  WHERE (c.title = 'IGCSE Mathematics' AND l.order_index IN (1,2))
+     OR (c.title = 'IGCSE English Literature' AND l.order_index IN (1,2))
+)
+INSERT INTO questions (quiz_id, type, question_text, options, correct_answer, points, order_index)
+SELECT quiz_id, 'multiple_choice', 'Sample MCQ ' || gs::text, '["A","B","C","D"]'::jsonb, 'A', 1, gs
+FROM qz, generate_series(1,3) AS gs
+UNION ALL
+SELECT quiz_id, 'short_answer', 'Short answer: type A', NULL, 'A', 2, 4 FROM qz;
